@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma"        content="no-cache">
+  <meta http-equiv="Expires"       content="0">
+  <meta name="viewport"            content="width=device-width, initial-scale=1">
+  <title>Current Alerts</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f8f9fa; }
+    .sidebar { background-color: #343a40; min-height: 100vh; }
+    .sidebar .nav-link { color: #adb5bd; }
+    .sidebar .nav-link.active { background-color: #495057; color: #fff; }
+    .content { padding: 2rem; }
+    .header-area { text-align: center; margin-bottom: 2rem; }
+    .header-area img { max-width: 300px; height: auto; }
+    .zone-card { margin-bottom: 1.5rem; }
+    .alert-card { margin-bottom: 0.75rem; }
+  </style>
+</head>
+<body>
+  <!-- Responsive Navbar -->
+  <nav class="navbar navbar-expand-md navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/weatheralerts/">
+        <img src="https://cluster.nc4es.org/img/logo-300x116.png" alt="NC4ES" height="30">
+        NC4ES Weather Alerts
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navMenu">
+        <ul class="navbar-nav me-auto mb-2 mb-md-0">
+          <li class="nav-item">
+            <a class="nav-link active" href="/weatheralerts/">Current Alerts</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/weatheralerts/logs.html">Alert Event Logs</a>
+          </li>
+        </ul>
+        <span class="navbar-text d-none d-md-block">
+          <a href="https://t.me/NC4ES" class="text-light" target="_blank">Telegram NC4ES Chat Link</a>
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Desktop Sidebar -->
+      <nav class="col-md-2 d-none d-md-block sidebar">
+        <div class="position-sticky pt-3">
+          <ul class="nav flex-column">
+            <li class="nav-item">
+              <a class="nav-link active" href="/weatheralerts/">Current Alerts</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/weatheralerts/logs.html">Alert Event Logs</a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+      <!-- Main Content -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 content">
+        <div class="header-area d-md-none">
+          <!-- Show full header on mobile below navbar -->
+          <img src="https://cluster.nc4es.org/img/logo-300x116.png" alt="NC4ES Logo">
+          <h2>NC4ES Weather Alert System</h2>
+          <p><a href="https://t.me/NC4ES" target="_blank">Telegram NC4ES Chat Link</a></p>
+        </div>
+
+        <h1 class="h2 mb-4">Current Alerts</h1>
+        <div class="row">
+          {% for zone, alerts in dashboard.items() %}
+          <div class="col-lg-6 zone-card">
+            <div class="card">
+              <div class="card-header bg-primary text-white">{{ zone }}</div>
+              <div class="card-body">
+                {% if alerts %}
+                  {% for a in alerts %}
+                  <div class="card alert-card">
+                    <div class="card-body p-2">
+                      <strong>{{ a.event }}</strong><br>{{ a.description }}
+                    </div>
+                  </div>
+                  {% endfor %}
+                {% else %}
+                  <p class="text-muted">No active alerts.</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
