@@ -1,0 +1,77 @@
+# Weather Alert System Configuration
+
+# You can override this with -c /path/to/yourconfig.yaml
+WeatherAlerts:
+  PollInterval: 120
+  Uppercase: false
+
+Alerting:
+  CountyCodes:
+#CountyCode1
+    - NCC001
+#CountyCode2
+    - NCC002
+
+#########This section will label the counties listed above for the webapp##########
+  CountyLabels:
+    NCC001: "County Code 1 Name"
+    NCC002: "County Code 2 Name"
+
+###########Chat Mapping based on county codes#################
+  CountyChatMap:
+
+#County Code 1 Chat ID
+    NCC001: "-*************"
+#CountyCode2 Chat ID
+    NCC002: "-*************"
+
+#Blocked Events
+  GlobalBlockedEvents: 
+     - "Routine Weekly Test"
+     - "Required Weekly Test"
+     - "Required Monthly Test"
+     - "Practice/Demo Warning"
+     - "Administrative Message"
+     - "National Audible Test"
+     - "National Information Center"
+     - "Child Abduction Emergency"
+     - "AMBER Alert"
+#When to broadcast
+  TimeType: onset
+
+#Non-defined Group Mapping
+Telegram:
+  BotToken: "*****************"
+  ChatID: "-******************"
+
+Logging:
+  Debug: false
+
+############### This section enables test alerting##############################
+DEV:
+#Enables test alerts via Telegram for the specific County based on the chat ID
+  INJECT: false
+  PrefixMessage: "THIS IS A TEST OF THE WEATHER ALERT SYSTEM. "
+  InjectChatIDs:
+#CountyCodeInject Chat ID
+    - "-****************"
+
+  INJECTALERTS:
+####This section will tell it where to put the alert on the web dashboard, uncomment only one section
+#CountyCode1
+    - Code: NCC001
+####
+    - Title: "Tornado Watch"
+      Description: "Test description for Tornado Watch"
+#    - Title: "Severe Thunderstorm Warning"
+#      Description: "Test description for Severe Thunderstorm Warning"
+
+# SkyDescribe settings (for modify_description)
+SkyDescribe:
+  MaxWords: 300
+
+Webapp:
+  # URL of the webapp POST endpoint (must match your webapp host/port)
+  LogEndpoint: "http://localhost:8085/weatheralerts/log"
+#Port Number used by webapp
+  Port: 8085
