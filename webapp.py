@@ -119,21 +119,24 @@ def get_settings():
     maxw = config.get('SkyDescribe', {}).get('MaxWords', 150) or 150
     return counties, labels, sk, ek, inject, tests, prefix, maxw
 
+
 def modify_description(text, maxw):
-    text = re.sub(r'\s+', ' ', text.replace('\n',' '))
-    abbr = {
-        r'\bmph\b': 'miles per hour',
-        r'\bknots\b': 'nautical miles per hour',
+    import re
+    text = re.sub(r'\s+', ' ', text.replace('\n', ' '))
+
+    # Normalize section headers like *WHAT. → *WHAT:
+    text = re.sub(r'\*\s*(WHAT|WHERE|WHEN|IMPACTS|ADDITIONAL DETAILS)\.\s*', r'*\1: ', text, flags=re.IGNORECASE)
+    abbreviations = {
         r"\bmph\b": "miles per hour",
         r"\bknots\b": "nautical miles per hour",
         r"\bNm\b": "nautical miles",
         r"\bnm\b": "nautical miles",
-        r"\bft\.\b": "feet",
-        r"\bin\.\b": "inches",
+        r"\bft\.": "feet",
+        r"\bin\.": "inches",
         r"\bm\b": "meter",
         r"\bkm\b": "kilometer",
         r"\bmi\b": "mile",
-        r"\b%\b": "percent",
+        r"%": "percent",
         r"\bN\b": "north",
         r"\bS\b": "south",
         r"\bE\b": "east",
@@ -151,43 +154,46 @@ def modify_description(text, maxw):
         r"\bmin\b": "minute",
         r"\bsec\b": "second",
         r"\bsq\b": "square",
-        r"\bw/\b": "with",
-        r"\bc/o\b": "care of",
+        r"w/": "with",
+        r"c/o": "care of",
         r"\bblw\b": "below",
         r"\babv\b": "above",
         r"\bavg\b": "average",
         r"\bfr\b": "from",
-        r"\bto\b": "to",
         r"\btill\b": "until",
-        r"\bb/w\b": "between",
-        r"\bbtwn\b": "between",
-        r"\bN/A\b": "not available",
-        r"\b&\b": "and",
-        r"\b\+\b": "plus",
-        r"\be\.g\.\b": "for example",
-        r"\bi\.e\.\b": "that is",
-        r"\best\.\b": "estimated",
-        r"\b\.\.\.\b": ".",
-        r"\b\n\n\b": ".",
-        r"\b\n\b": ".",
-        r"\bEDT\b": "eastern daylight time",
-        r"\bEST\b": "eastern standard time",
-        r"\bCST\b": "central standard time",
-        r"\bCDT\b": "central daylight time",
-        r"\bMST\b": "mountain standard time",
-        r"\bMDT\b": "mountain daylight time",
-        r"\bPST\b": "pacific standard time",
-        r"\bPDT\b": "pacific daylight time",
-        r"\bAKST\b": "Alaska standard time",
-        r"\bAKDT\b": "Alaska daylight time",
-        r"\bHST\b": "Hawaii standard time",
-        r"\bHDT\b": "Hawaii daylight time"
-
+        r"b/w": "between",
+        r"btwn": "between",
+        r"N/A": "not available",
+        r"&": "and",
+        r"\+": "plus",
+        r"e\.g\.": "for example",
+        r"i\.e\.": "that is",
+        r"est\.": "estimated",
+        r"\.\.\.": ".",
+        r"EDT": "eastern daylight time",
+        r"(?<![a-zA-Z])EST(?![a-zA-Z])": "eastern standard time",
+        r"CST": "central standard time",
+        r"CDT": "central daylight time",
+        r"MST": "mountain standard time",
+        r"MDT": "mountain daylight time",
+        r"PST": "pacific standard time",
+        r"PDT": "pacific daylight time",
+        r"AKST": "alaska standard time",
+        r"AKDT": "alaska daylight time",
+        r"HST": "hawaii standard time",
+        r"HDT": "hawaii daylight time"
     }
-    for k,v in abbr.items():
-        text = re.sub(k, v, text)
+
+    for k, v in abbreviations.items():
+        text = re.sub(k, v, text, flags=re.IGNORECASE)
+
+    # Final cleanup
+    text = re.sub(r'\s*\.\.+', '.', text)
+    text = re.sub(r':\s*\.', ':', text)
+    text = re.sub(r'\s{2,}', ' ', text)
+
     words = text.split()
-    return ' '.join(words[:maxw]) if len(words)>maxw else text
+    return ' '.join(words[:maxw]) if len(words) > maxw else text
 
 def fetch_alerts_for_zone(zone, sk, ek, maxw):
     try:

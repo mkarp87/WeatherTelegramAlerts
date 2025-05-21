@@ -70,13 +70,81 @@ WEBHOOK_URL     = config.get('Webapp', {}).get('LogEndpoint')
 MAX_WORDS = config.get('SkyDescribe', {}).get('MaxWords', 150) or 150
 
 def modify_description(text: str) -> str:
+    import re
     text = text.replace("\n", " ")
     text = re.sub(r"\s+", " ", text)
-    abbreviations = {r"\bmph\b":"miles per hour", r"\bknots\b":"nautical miles per hour"}
-    for abbr, full in abbreviations.items(): text = re.sub(abbr, full, text)
-    words = text.split()
-    return " ".join(words[:MAX_WORDS]) if len(words)>MAX_WORDS else text
 
+    # Normalize section headers like *WHAT. → *WHAT:
+    text = re.sub(r"\*\s*(WHAT|WHERE|WHEN|IMPACTS|ADDITIONAL DETAILS)\.\s*", r"*\1: ", text, flags=re.IGNORECASE)
+
+    abbreviations = {
+        r"\bmph\b": "miles per hour",
+        r"\bknots\b": "nautical miles per hour",
+        r"\bNm\b": "nautical miles",
+        r"\bnm\b": "nautical miles",
+        r"\bft\.": "feet",
+        r"\bin\.": "inches",
+        r"\bm\b": "meter",
+        r"\bkm\b": "kilometer",
+        r"\bmi\b": "mile",
+        r"%": "percent",
+        r"\bN\b": "north",
+        r"\bS\b": "south",
+        r"\bE\b": "east",
+        r"\bW\b": "west",
+        r"\bNE\b": "northeast",
+        r"\bNW\b": "northwest",
+        r"\bSE\b": "southeast",
+        r"\bSW\b": "southwest",
+        r"\bF\b": "Fahrenheit",
+        r"\bC\b": "Celsius",
+        r"\bUV\b": "ultraviolet",
+        r"\bgusts up to\b": "gusts of up to",
+        r"\bhrs\b": "hours",
+        r"\bhr\b": "hour",
+        r"\bmin\b": "minute",
+        r"\bsec\b": "second",
+        r"\bsq\b": "square",
+        r"w/": "with",
+        r"c/o": "care of",
+        r"\bblw\b": "below",
+        r"\babv\b": "above",
+        r"\bavg\b": "average",
+        r"\bfr\b": "from",
+        r"\btill\b": "until",
+        r"b/w": "between",
+        r"btwn": "between",
+        r"N/A": "not available",
+        r"&": "and",
+        r"\+": "plus",
+        r"e\.g\.": "for example",
+        r"i\.e\.": "that is",
+        r"est\.": "estimated",
+        r"\.\.\.": ".",
+        r"EDT": "eastern daylight time",
+        r"(?<![a-zA-Z])EST(?![a-zA-Z])": "eastern standard time"
+        r"CST": "central standard time",
+        r"CDT": "central daylight time",
+        r"MST": "mountain standard time",
+        r"MDT": "mountain daylight time",
+        r"PST": "pacific standard time",
+        r"PDT": "pacific daylight time",
+        r"AKST": "alaska standard time",
+        r"AKDT": "alaska daylight time",
+        r"HST": "hawaii standard time",
+        r"HDT": "hawaii daylight time"
+    }
+
+    for abbr, full in abbreviations.items():
+        text = re.sub(abbr, full, text, flags=re.IGNORECASE)
+
+    # Clean up dots and spacing
+    text = re.sub(r"\s*\.\.+", ".", text)
+    text = re.sub(r":\s*\.", ":", text)
+    text = re.sub(r"\s{2,}", " ", text)
+
+    words = text.split()
+    return " ".join(words[:MAX_WORDS]) if len(words) > MAX_WORDS else text
 # ----- Telegram Sender -----
 def send_telegram(text: str, chat_id: str):
     if config.get('WeatherAlerts', {}).get('Uppercase', False):
