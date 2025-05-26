@@ -19,6 +19,9 @@ import time
 from datetime import datetime, timezone
 from dateutil import parser
 from ruamel.yaml import YAML
+import pytz
+
+eastern = pytz.timezone("America/New_York")
 
 # ----- CLI Argument Parsing -----
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -122,7 +125,7 @@ def modify_description(text: str) -> str:
         r"est\.": "estimated",
         r"\.\.\.": ".",
         r"EDT": "eastern daylight time",
-        r"(?<![a-zA-Z])EST(?![a-zA-Z])": "eastern standard time"
+        r"(?<![a-zA-Z])EST(?![a-zA-Z])": "eastern standard time",
         r"CST": "central standard time",
         r"CDT": "central daylight time",
         r"MST": "mountain standard time",
@@ -160,7 +163,8 @@ def send_telegram(text: str, chat_id: str):
 
 # ----- Fetch Active Alerts -----
 def fetch_active_alerts():
-    now = datetime.now(timezone.utc)
+    eastern = pytz.timezone("America/New_York")
+    now = datetime.now(pytz.utc).astimezone(eastern)
     alerts = []
     for zone in county_codes:
         try:
@@ -177,8 +181,8 @@ def fetch_active_alerts():
                 continue
             st = p.get(start_key); ed = p.get(end_key) or p.get('expires')
             if not (st and ed): continue
-            sdt = parser.isoparse(st).astimezone(timezone.utc)
-            edt = parser.isoparse(ed).astimezone(timezone.utc)
+            sdt = parser.isoparse(st).astimezone(pytz.utc).astimezone(eastern)
+            edt = parser.isoparse(ed).astimezone(pytz.utc).astimezone(eastern)
             if sdt <= now < edt:
                 desc = p.get('description','').strip()
                 chat = county_chat_map.get(zone) or DEFAULT_CHAT_ID
@@ -215,7 +219,7 @@ def main_iteration():
                 chat = e.get('chat_id') or DEFAULT_CHAT_ID
                 send_telegram("ALL CLEAR: The national weather service has cleared all alerts for this area.", chat)
                 if WEBHOOK_URL:
-                    payload = {"timestamp":datetime.now(timezone.utc).isoformat(),
+                    payload = {"timestamp":datetime.now(pytz.utc).astimezone(eastern).isoformat(),
                                "county":e.get('zone') or 'ALL',
                                "event":"ALL CLEAR",
                                "description":""}
@@ -235,7 +239,7 @@ def main_iteration():
             clean = modify_description(text)
             send_telegram(clean, chat)
             if WEBHOOK_URL:
-                payload = {"timestamp":datetime.now(timezone.utc).isoformat(),
+                payload = {"timestamp":datetime.now(pytz.utc).astimezone(eastern).isoformat(),
                            "county":a.get('zone') or 'DEV',
                            "event":a['Title'],
                            "description":a['Description']}
