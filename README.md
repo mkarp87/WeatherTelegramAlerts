@@ -1,5 +1,15 @@
 Welcome to the WeatherAlerts application! This project provides real-time weather alerts tailored for your region.
 
+
+## 🛠 Features
+
+- 🚨 Sends real-time weather alerts via Telegram
+- 📋 Logs and displays alerts on a Flask-based web dashboard
+- ⚙ Configurable per-county routing and filtering
+- 🔍 Filters global events you don't care about
+- 🔧 Optional test mode for dev environments
+
+
 ## 🚀 Getting Started
 
 These instructions will get the app up and running on your local machine.
@@ -7,24 +17,17 @@ These instructions will get the app up and running on your local machine.
 ### 📥 Clone the Repository
 
 ```bash
-git clone https://github.com/mkarp87/weatheralerts.git
+apt install Python3 git
+git clone [https://github.com/mkarp87/weatheralerts.git](https://github.com/mkarp87/WeatherTelegramAlerts.git)
 cd weatheralerts
 
-⚙️ Prerequisites
+### 📥 Install the virtual Environment:
+python3 -m venv venv
+source venv/bin/activate
 
-Make sure you have the following installed:
-    Node.js (v16+)
-    npm or yarn
-    Python 3.9+ 
-    pip for installing Python dependencies
-
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-
-# Install dependencies
+### 📥 Install dependencies
 pip install -r requirements.txt
 
 # Run the application
-python WeatherAlerts.py
-python webapp.py
+python3 WeatherAlerts.py
+python3 webapp.py
