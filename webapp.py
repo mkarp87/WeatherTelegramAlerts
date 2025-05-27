@@ -16,10 +16,11 @@ Routes:
 """
 import os
 import argparse
+import json
 import requests
 import re
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, timedelta
 from dateutil import parser
 from flask import Flask, render_template, jsonify, abort, redirect, request
 from ruamel.yaml import YAML
@@ -57,26 +58,45 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.url_map.strict_slashes = False
 
 alert_logs = []  # each entry: { timestamp, county, event, description }
+# ─── File-based logging persistence ─────────────────────────────────────────
+LOG_FILE = config.get('Webapp', {}).get('LogFile', 'alert_logs.json')
+# Load persisted logs
+try:
+    if os.path.exists(LOG_FILE):
+        with open(LOG_FILE, 'r') as f:
+            alert_logs = json.load(f)
+except Exception as e:
+    app.logger.error(f"Failed to load log file {LOG_FILE}: {e}")
+
+def save_log_file():
+    try:
+        with open(LOG_FILE, 'w') as f:
+            json.dump(alert_logs, f)
+    except Exception as e:
+        app.logger.error(f"Failed to save log file {LOG_FILE}: {e}")
 last_prune_date = datetime.now(timezone.utc).date()
 
 def prune_logs():
-    global alert_logs, last_prune_date
-    today = datetime.now(timezone.utc).date()
-    if today != last_prune_date:
-        cutoff = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
-        new_logs = []
-        for entry in alert_logs:
-            ts = entry.get('timestamp')
-            try:
-                dt = parser.isoparse(ts)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-                if dt >= cutoff:
-                    new_logs.append(entry)
-            except Exception:
-                continue
+    global alert_logs
+    # Keep logs since last Sunday midnight UTC
+    today_date = datetime.now(timezone.utc).date()
+    days_since_sunday = (today_date.weekday() + 1) % 7
+    last_sunday = today_date - timedelta(days=days_since_sunday)
+    cutoff = datetime(last_sunday.year, last_sunday.month, last_sunday.day, tzinfo=timezone.utc)
+    new_logs = []
+    for entry in alert_logs:
+        ts = entry.get('timestamp')
+        try:
+            dt = parser.isoparse(ts)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+        if dt >= cutoff:
+            new_logs.append(entry)
+    if len(new_logs) != len(alert_logs):
         alert_logs = new_logs
-        last_prune_date = today
+        save_log_file()
 
 @app.route('/weatheralerts/log', methods=['POST'])
 def log_event():
@@ -90,6 +110,7 @@ def log_event():
     }
     app.logger.info("Received log event: {}".format(entry))
     alert_logs.append(entry)
+    save_log_file()
     return ('', 204)
 
 @app.before_request
@@ -297,7 +318,12 @@ def logs():
 @app.route('/weatheralerts/logs.json')
 def logs_json():
     prune_logs()
-    return jsonify(alert_logs)
+    # Enrich logs with county labels
+    labels_map = config.get('Alerting', {}).get('CountyLabels', {})
+    enriched = []
+    for log in alert_logs:
+        enriched.append({**log, 'county_label': labels_map.get(log.get('county', ''), log.get('county', ''))})
+    return jsonify(enriched)
 
 @app.route('/api/alerts')
 def api_alerts():
