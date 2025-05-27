@@ -141,13 +141,13 @@ def modify_description(text: str) -> str:
     for abbr, full in abbreviations.items():
         text = re.sub(abbr, full, text, flags=re.IGNORECASE)
 
-    # Clean up dots and spacing
     text = re.sub(r"\s*\.\.+", ".", text)
     text = re.sub(r":\s*\.", ":", text)
     text = re.sub(r"\s{2,}", " ", text)
 
     words = text.split()
     return " ".join(words[:MAX_WORDS]) if len(words) > MAX_WORDS else text
+
 # ----- Telegram Sender -----
 def send_telegram(text: str, chat_id: str):
     if config.get('WeatherAlerts', {}).get('Uppercase', False):
@@ -203,13 +203,16 @@ def main_iteration():
     prev = load_state()
     if INJECT:
         LOGGER.info("DEV mode: injecting test alerts")
-        current=[]; targets = INJECT_CHAT_IDS or list(set(county_chat_map.values())|{DEFAULT_CHAT_ID})
+        current = []
+        targets = INJECT_CHAT_IDS or list(set(county_chat_map.values()) | {DEFAULT_CHAT_ID})
         for a in INJECTALERTS:
-            title = a['Title']; desc = a.get('Description','')
-            if INJECT_PREFIX: desc = INJECT_PREFIX + desc
+            title = a['Title']
+            desc = a.get('Description', '')
+            if INJECT_PREFIX:
+                desc = INJECT_PREFIX + desc
             for chat in targets:
-                current.append({'id':f"inject_{chat}_{title}", 'zone':None,
-                                'chat_id':chat, 'Title':title,'Description':desc})
+                current.append({'id': f"inject_{chat}_{title}", 'zone': None,
+                                'chat_id': chat, 'Title': title, 'Description': desc})
     else:
         current = fetch_active_alerts()
 
@@ -219,17 +222,23 @@ def main_iteration():
                 chat = e.get('chat_id') or DEFAULT_CHAT_ID
                 send_telegram("ALL CLEAR: The national weather service has cleared all alerts for this area.", chat)
                 if WEBHOOK_URL:
-                    payload = {"timestamp":datetime.now(pytz.utc).astimezone(eastern).isoformat(),
-                               "county":e.get('zone') or 'ALL',
-                               "event":"ALL CLEAR",
-                               "description":""}
-                    try: requests.post(WEBHOOK_URL, json=payload, timeout=5)
-                    except: LOGGER.debug("Failed POST ALL CLEAR to webapp")
+                    payload = {
+                        "timestamp": datetime.now(pytz.utc).astimezone(eastern).isoformat(),
+                        "county": e.get('zone') or 'ALL',
+                        "event": "ALL CLEAR",
+                        "description": ""
+                    }
+                    try:
+                        requests.post(WEBHOOK_URL, json=payload, timeout=5)
+                    except:
+                        LOGGER.debug("Failed POST ALL CLEAR to webapp")
         save_state([])
         return
 
-    pm = {e['id']:e for e in prev}
-    to_send = [a for a in current if a['id'] not in pm or a['Description']!=pm[a['id']]['Description']]
+    pm = {f"{e['id']}:{e.get('zone','')}": e for e in prev}
+    to_send = [a for a in current if f"{a['id']}:{a.get('zone','')}" not in pm
+               or a['Description'] != pm[f"{a['id']}:{a.get('zone','')}"]['Description']]
+
     if not to_send:
         LOGGER.info("No new or changed alerts.")
     else:
@@ -239,13 +248,23 @@ def main_iteration():
             clean = modify_description(text)
             send_telegram(clean, chat)
             if WEBHOOK_URL:
-                payload = {"timestamp":datetime.now(pytz.utc).astimezone(eastern).isoformat(),
-                           "county":a.get('zone') or 'DEV',
-                           "event":a['Title'],
-                           "description":a['Description']}
-                try: requests.post(WEBHOOK_URL, json=payload, timeout=5)
-                except: LOGGER.debug("Failed POST alert to webapp")
-    save_state([{'id':a['id'],'chat_id':a['chat_id'],'Description':a['Description']} for a in current])
+                payload = {
+                    "timestamp": datetime.now(pytz.utc).astimezone(eastern).isoformat(),
+                    "county": a.get('zone') or 'DEV',
+                    "event": a['Title'],
+                    "description": a['Description']
+                }
+                try:
+                    requests.post(WEBHOOK_URL, json=payload, timeout=5)
+                except:
+                    LOGGER.debug("Failed POST alert to webapp")
+
+    save_state([{
+        'id': a['id'],
+        'zone': a.get('zone'),
+        'chat_id': a['chat_id'],
+        'Description': a['Description']
+    } for a in current])
 
 # ----- Poll Loop -----
 if __name__=='__main__':
