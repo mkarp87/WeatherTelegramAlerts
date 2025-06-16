@@ -4,6 +4,7 @@
 WeatherAlerts:
   PollInterval: 120
   Uppercase: false
+  UserAgent: "WeatherAlertsBot/1.0 (youremail@domain.com)"
 
 Alerting:
   CountyCodes:
