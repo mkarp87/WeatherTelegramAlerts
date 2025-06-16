@@ -39,6 +39,9 @@ def load_config():
         return yaml.load(f)
 config = load_config()
 
+USER_AGENT = config.get('WeatherAlerts', {}).get('UserAgent', 'WeatherAlertsBot/1.0 (no-contact@example.com)')
+
+
 # ----- Logging -----
 LOG_LEVEL = logging.DEBUG if config.get('Logging', {}).get('Debug', False) else logging.INFO
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s %(levelname)s %(message)s')
@@ -124,18 +127,18 @@ def modify_description(text: str) -> str:
         r"i\.e\.": "that is",
         r"est\.": "estimated",
         r"\.\.\.": ".",
-        r"EDT": "eastern daylight time",
+#        r"EDT": "eastern daylight time",
         r"(?<![a-zA-Z])EST(?![a-zA-Z])": "eastern standard time",
-        r"CST": "central standard time",
-        r"CDT": "central daylight time",
-        r"MST": "mountain standard time",
-        r"MDT": "mountain daylight time",
-        r"PST": "pacific standard time",
-        r"PDT": "pacific daylight time",
-        r"AKST": "alaska standard time",
-        r"AKDT": "alaska daylight time",
-        r"HST": "hawaii standard time",
-        r"HDT": "hawaii daylight time"
+#        r"CST": "central standard time",
+#        r"CDT": "central daylight time",
+#        r"MST": "mountain standard time",
+#        r"MDT": "mountain daylight time",
+#        r"PST": "pacific standard time",
+#        r"PDT": "pacific daylight time",
+#        r"AKST": "alaska standard time",
+#        r"AKDT": "alaska daylight time",
+#        r"HST": "hawaii standard time",
+#        r"HDT": "hawaii daylight time"
     }
 
     for abbr, full in abbreviations.items():
@@ -147,6 +150,22 @@ def modify_description(text: str) -> str:
 
     words = text.split()
     return " ".join(words[:MAX_WORDS]) if len(words) > MAX_WORDS else text
+
+
+# ----- File Logging per County -----
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+def log_alert_to_file(zone, title, description):
+    if not zone:
+        return
+    path = os.path.join(LOG_DIR, f"{zone}.log")
+    timestamp = datetime.now(pytz.utc).astimezone(eastern).isoformat()
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"[{timestamp}] {title}\n{description}\n\n")
+    except Exception as e:
+        LOGGER.error(f"Error writing log for {zone}: {e}")
 
 # ----- Telegram Sender -----
 def send_telegram(text: str, chat_id: str):
@@ -168,7 +187,7 @@ def fetch_active_alerts():
     alerts = []
     for zone in county_codes:
         try:
-            r = requests.get(f"https://api.weather.gov/alerts/active?zone={zone}", timeout=10)
+            r = requests.get(f"https://api.weather.gov/alerts/active?zone={zone}", timeout=10, headers={'User-Agent': USER_AGENT})
             r.raise_for_status()
             data = r.json()
         except Exception as e:
@@ -247,6 +266,7 @@ def main_iteration():
             text = f"Detailed alert for {a['Title']}. {a['Description']}"
             clean = modify_description(text)
             send_telegram(clean, chat)
+            log_alert_to_file(a.get('zone'), a['Title'], a['Description'])
             if WEBHOOK_URL:
                 payload = {
                     "timestamp": datetime.now(pytz.utc).astimezone(eastern).isoformat(),

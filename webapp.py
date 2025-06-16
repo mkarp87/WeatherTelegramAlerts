@@ -49,6 +49,9 @@ def load_config():
         return yaml.load(f)
 
 config = load_config()
+
+USER_AGENT = config.get('Webapp', {}).get('UserAgent', 'WeatherAlertsBot/1.0 (no-contact@example.com)')
+
 blocked_events = config.get('Alerting', {}).get('GlobalBlockedEvents', []) or []
 
 app = Flask(__name__)
@@ -100,6 +103,9 @@ def log_event():
 def reload_cfg():
     global config, blocked_events
     config = load_config()
+
+USER_AGENT = config.get('Webapp', {}).get('UserAgent', 'WeatherAlertsBot/1.0 (no-contact@example.com)')
+
     blocked_events = config.get('Alerting', {}).get('GlobalBlockedEvents', []) or []
 
 @app.after_request
