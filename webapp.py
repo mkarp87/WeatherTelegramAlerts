@@ -101,11 +101,9 @@ def log_event():
 
 @app.before_request
 def reload_cfg():
-    global config, blocked_events
+    global config, blocked_events, USER_AGENT
     config = load_config()
-
-USER_AGENT = config.get('Webapp', {}).get('UserAgent', 'WeatherAlertsBot/1.0 (no-contact@example.com)')
-
+    USER_AGENT = config.get('Webapp', {}).get('UserAgent', 'WeatherAlertsBot/1.0 (no-contact@example.com)')
     blocked_events = config.get('Alerting', {}).get('GlobalBlockedEvents', []) or []
 
 @app.after_request
@@ -247,4 +245,4 @@ def api_alerts():
 
 if __name__ == '__main__':
     port = config.get('Webapp', {}).get('Port', 5000)
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='10.0.11.2', port=port, debug=False)

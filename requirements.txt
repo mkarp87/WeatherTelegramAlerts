@@ -3,5 +3,5 @@ ruamel.yaml
 requests
 python-dateutil
 Werkzeug
-backports.zoneinfo
+backports.zoneinfo; python_version < "3.9"
 pytz
