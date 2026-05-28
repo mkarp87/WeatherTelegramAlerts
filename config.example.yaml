@@ -8,47 +8,27 @@ WeatherAlerts:
   RequestTimeout: 10
   StateFile: "data/last_alerts.json"
   # NWS asks for a User-Agent that identifies your app and includes contact info.
-  UserAgent: "WeatherTelegramAlerts/2.1.4 (https://github.com/mkarp87/WeatherTelegramAlerts)"
+  UserAgent: "WeatherTelegramAlerts/2.2.5 (https://github.com/mkarp87/WeatherTelegramAlerts)"
 
 Alerting:
   CountyCodes:
     - NCC013 # Beaufort
-    - NCC031 # Carteret
-    - NCC049 # Craven
-    - NCC055 # Dare
-    - NCC061 # Duplin
-    - NCC065 # Edgecombe
-    - NCC083 # Halifax
-    - NCC107 # Lenoir
-    - NCC133 # Onslow
-    - NCC137 # Pamlico
-    - NCC147 # Pitt
+
 
   CountyLabels:
     NCC013: "Beaufort County"
-    NCC031: "Carteret County"
-    NCC049: "Craven County"
-    NCC055: "Dare County"
-    NCC061: "Duplin County"
-    NCC065: "Edgecombe County"
-    NCC083: "Halifax County"
-    NCC107: "Lenoir County"
-    NCC133: "Onslow County"
-    NCC137: "Pamlico County"
-    NCC147: "Pitt County"
+
 
   CountyChatMap:
     NCC013: "-1000000000001"
-    NCC031: "-1000000000002"
-    NCC049: "-1000000000003"
-    NCC055: "-1000000000004"
-    NCC061: "-1000000000005"
-    NCC065: "-1000000000006"
-    NCC083: "-1000000000007"
-    NCC107: "-1000000000008"
-    NCC133: "-1000000000009"
-    NCC137: "-1000000000010"
-    NCC147: "-1000000000011"
+
+
+  # Optional dashboard links for county names. Use public Telegram usernames,
+  # t.me links, or private invite links. Numeric Bot API chat IDs do not work
+  # as user-clickable Telegram links. Leave a value blank to show plain text.
+  CountyChatLinks:
+    NCC013: "" # Beaufort, e.g. https://t.me/+invitecode
+
 
   GlobalBlockedEvents:
     - "Routine Weekly Test"
@@ -99,6 +79,54 @@ Webapp:
   CacheSeconds: 90
   LogoURL: ""
   LogoAlt: "NC4ES Weather Alerts"
+
+  Radar:
+    Enabled: true
+    Title: "Eastern North Carolina Radar"
+    # Default radar mode uses the NCEP/NOAA WMS layer used for MRMS CONUS base reflectivity.
+    # This is generally more reliable in Leaflet than the ArcGIS dynamic export endpoint.
+    Mode: "wms"
+    Height: 620
+    Opacity: 0.85
+    RefreshSeconds: 300
+    DefaultRegion: "eastern_nc"
+
+    WmsURL: "https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows"
+    WmsLayers: "conus_bref_qcd"
+    WmsVersion: "1.1.1"
+    WmsFormat: "image/png"
+    WmsStyles: ""
+    WmsTransparent: true
+    WmsTiled: true
+    WmsUppercase: true
+
+    # Optional legacy ArcGIS mode. Used only when Mode: "arcgis".
+    ServiceURL: "https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity/MapServer"
+    UseDefaultLayers: true
+    LayerIds: []
+
+    DisableCache: true
+    StartupDelayMs: 350
+    LeafletCssURL: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    LeafletJsURL: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    EsriLeafletJsURL: "https://cdn.jsdelivr.net/npm/esri-leaflet@3.0.19/dist/esri-leaflet.js"
+    BaseTileURL: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    BaseTileAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    RadarAttribution: "NOAA/NWS/NCEP"
+    SourceLabel: "NOAA/NCEP MRMS WMS"
+    ScrollWheelZoom: false
+    Regions:
+      eastern_nc:
+        Label: "Eastern NC"
+        CenterLat: 35.35
+        CenterLon: -77.25
+        Zoom: 7
+      northern_coast:
+        Label: "Northern NC Coast"
+        CenterLat: 35.90
+        CenterLon: -76.05
+        Zoom: 8
+
   LogDatabase: "data/alert_logs.sqlite3"
   LogHours: 24
   LogRetentionDays: 7

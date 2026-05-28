@@ -1,6 +1,6 @@
 # WeatherTelegramAlerts
 
-WeatherTelegramAlerts monitors active National Weather Service alerts, sends Telegram notifications by county, and provides a web dashboard for current alerts and recent event logs.
+WeatherTelegramAlerts monitors active National Weather Service alerts, sends Telegram notifications by county, and provides a web dashboard for current alerts, radar, and recent event logs.
 
 ## Architecture
 
@@ -22,13 +22,14 @@ Data:        /opt/WeatherTelegramAlerts/data
 Logs:        /opt/WeatherTelegramAlerts/logs
 Service:     weather-alerts.service
 Dashboard:   http://SERVER_IP:8085/weatheralerts
+Logs page:   http://SERVER_IP:8085/weatheralerts/logs.html
 ```
 
 ## Requirements
 
 - Ubuntu/Debian system with systemd
 - Python 3.9 or newer
-- Network access to `api.weather.gov` and the Telegram Bot API
+- Network access to `api.weather.gov`, `api.telegram.org`, configured CDN URLs, configured map tile URL, and NOAA/NWS map services
 - Telegram bot token
 - Telegram chat IDs
 
@@ -40,10 +41,6 @@ The installer installs the required OS packages with `apt-get` when available.
 cd /opt
 sudo git clone https://github.com/mkarp87/WeatherTelegramAlerts.git
 cd /opt/WeatherTelegramAlerts
-sudo ./install.sh --config /path/to/private/config.yaml --start
-```
-
-The private config is copied to:
 
 ```text
 /opt/WeatherTelegramAlerts/config.yaml
@@ -80,13 +77,17 @@ It should be missing, disabled, or inactive.
 
 Use `config.example.yaml` as the public template. Do not commit `config.yaml` or private configs.
 
-Important settings:
+Core settings:
 
 ```yaml
 WeatherAlerts:
   PollInterval: 300
   StateFile: "data/last_alerts.json"
-  UserAgent: "WeatherTelegramAlerts/2.1.4 (https://github.com/mkarp87/WeatherTelegramAlerts)"
+  UserAgent: "WeatherTelegramAlerts/2.2.5 (https://github.com/mkarp87/WeatherTelegramAlerts)"
+
+Telegram:
+  BotToken: "PUT_YOUR_TELEGRAM_BOT_TOKEN_HERE"
+  ChatID: "-1000000000000"
 
 Webapp:
   Host: "0.0.0.0"
@@ -95,14 +96,66 @@ Webapp:
   LogDatabase: "data/alert_logs.sqlite3"
   Waitress: true
   LogoURL: ""
-  LogoAlt: "NC4ES Weather Alerts"
+  LogoAlt: "Weather Alerts"
 ```
 
 `Alerting.CountyCodes` defines monitored NWS county or zone codes. `Alerting.CountyChatMap` maps each code to a Telegram chat. `Telegram.ChatID` is the fallback chat for unmapped counties.
 
+`Alerting.CountyChatLinks` optionally makes county names clickable on the dashboard and event log page. Use public Telegram usernames, `t.me` links, or private invite links. Numeric Bot API chat IDs are not user-clickable Telegram links.
+
 Set `Webapp.LogoURL` to show a custom dashboard logo in the header. Leave it blank to use the built-in `NC` mark.
 
 `Webapp.Waitress: true` runs the dashboard with Waitress, a production WSGI server for Flask.
+
+## Radar dashboard
+
+The dashboard can display a configurable radar panel. Leaflet is loaded from the configured CDN URL, base map tiles are loaded from the configured tile URL, and radar reflectivity is loaded from an external NOAA/NCEP WMS layer.
+
+The default radar mode is `wms`. This avoids the intermittent blank-image behavior that can occur with ArcGIS dynamic export layers in some browsers.
+
+```yaml
+Webapp:
+  Radar:
+    Enabled: true
+    Title: "Eastern North Carolina Radar"
+    Mode: "wms"
+    Height: 620
+    Opacity: 0.85
+    RefreshSeconds: 300
+    DefaultRegion: "eastern_nc"
+
+    WmsURL: "https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows"
+    WmsLayers: "conus_bref_qcd"
+    WmsVersion: "1.1.1"
+    WmsFormat: "image/png"
+    WmsStyles: ""
+    WmsTransparent: true
+    WmsTiled: true
+    WmsUppercase: true
+
+    LeafletCssURL: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    LeafletJsURL: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    BaseTileURL: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    BaseTileAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    RadarAttribution: "NOAA/NWS/NCEP"
+    SourceLabel: "NOAA/NCEP MRMS WMS"
+    ScrollWheelZoom: false
+    Regions:
+      eastern_nc:
+        Label: "Eastern NC"
+        CenterLat: 35.35
+        CenterLon: -77.25
+        Zoom: 7
+      pitt_craven:
+        Label: "Pitt / Craven / Lenoir"
+        CenterLat: 35.35
+        CenterLon: -77.35
+        Zoom: 9
+```
+
+The region selector on the dashboard is generated from `Webapp.Radar.Regions`. Blank map areas mean there are no radar returns at that location; they do not necessarily indicate a failed layer. If the WMS layer fails to load, the dashboard displays an error below the radar map.
+
+Legacy ArcGIS mode remains available with `Mode: "arcgis"`, `ServiceURL`, and `LayerIds`, but WMS mode is the recommended default.
 
 ## Manual validation
 

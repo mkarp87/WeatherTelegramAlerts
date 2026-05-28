@@ -64,6 +64,57 @@ def token_is_valid(config: dict[str, Any], provided: str) -> bool:
     return hmac.compare_digest(provided or "", expected)
 
 
+def normalize_telegram_chat_link(value: Any) -> str:
+    """Normalize a configured Telegram link for dashboard use.
+
+    Numeric Bot API chat IDs are intentionally not converted. Private groups
+    need a Telegram invite link or public username to be opened by users.
+    """
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+
+    lowered = raw.lower()
+    if lowered.startswith(("https://", "http://", "tg://")):
+        return raw
+    if lowered.startswith(("t.me/", "telegram.me/")):
+        return f"https://{raw}"
+    if raw.startswith("@"):
+        username = raw[1:].strip("/")
+        return f"https://t.me/{username}" if username else ""
+    if raw.startswith("+"):
+        return f"https://t.me/{raw}"
+    if raw.startswith("-") or raw.isdigit():
+        return ""
+    return f"https://t.me/{raw.strip('/')}"
+
+
+def county_chat_links_by_code(config: dict[str, Any]) -> dict[str, str]:
+    alert_cfg = config.get("Alerting", {}) or {}
+    raw_links = (
+        alert_cfg.get("CountyChatLinks")
+        or alert_cfg.get("CountyChatURLs")
+        or alert_cfg.get("CountyTelegramLinks")
+        or {}
+    )
+    if not isinstance(raw_links, dict):
+        return {}
+
+    links: dict[str, str] = {}
+    for code, raw_link in raw_links.items():
+        zone = str(code).strip()
+        link = normalize_telegram_chat_link(raw_link)
+        if zone and link:
+            links[zone] = link
+    return links
+
+
+def county_chat_links_by_label(config: dict[str, Any]) -> dict[str, str]:
+    alert_cfg = config.get("Alerting", {}) or {}
+    labels = {str(k): str(v) for k, v in (alert_cfg.get("CountyLabels") or {}).items()}
+    by_code = county_chat_links_by_code(config)
+    return {labels.get(code, code): link for code, link in by_code.items()}
+
 
 def alert_kind_from_event(event: Any) -> str:
     text = str(event or "").lower()
@@ -189,6 +240,174 @@ def build_dashboard(config: dict[str, Any]) -> dict[str, list[dict[str, str]]]:
     return dashboard
 
 
+def _as_int(value: Any, default: int, *, minimum: int | None = None, maximum: int | None = None) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    if minimum is not None:
+        parsed = max(minimum, parsed)
+    if maximum is not None:
+        parsed = min(maximum, parsed)
+    return parsed
+
+
+def _as_float(value: Any, default: float, *, minimum: float | None = None, maximum: float | None = None) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        parsed = default
+    if minimum is not None:
+        parsed = max(minimum, parsed)
+    if maximum is not None:
+        parsed = min(maximum, parsed)
+    return parsed
+
+
+def _parse_layer_ids(value: Any) -> list[int]:
+    if value in (None, ""):
+        return []
+    if isinstance(value, (list, tuple, set)):
+        raw_values = value
+    else:
+        raw_values = str(value).replace(";", ",").split(",")
+    parsed: list[int] = []
+    for item in raw_values:
+        try:
+            parsed.append(int(str(item).strip()))
+        except (TypeError, ValueError):
+            continue
+    return parsed
+
+
+def radar_config_from_config(config: dict[str, Any]) -> dict[str, Any]:
+    web_cfg = config.get("Webapp", {}) or {}
+    raw = web_cfg.get("Radar", {}) or {}
+    if not isinstance(raw, dict):
+        raw = {}
+
+    enabled = as_bool(raw.get("Enabled"), default=False)
+    raw_regions = raw.get("Regions") or {}
+    if not isinstance(raw_regions, dict):
+        raw_regions = {}
+
+    regions: dict[str, dict[str, Any]] = {}
+    for key, value in raw_regions.items():
+        if not isinstance(value, dict):
+            continue
+        region_key = str(key).strip()
+        if not region_key:
+            continue
+        try:
+            lat = float(value.get("CenterLat", value.get("Lat", value.get("Latitude"))))
+            lon = float(value.get("CenterLon", value.get("Lon", value.get("Longitude"))))
+        except (TypeError, ValueError):
+            LOGGER.warning("Skipping radar region %s because CenterLat/CenterLon are invalid", region_key)
+            continue
+        zoom = _as_int(value.get("Zoom"), 7, minimum=3, maximum=14)
+        regions[region_key] = {
+            "label": str(value.get("Label") or region_key).strip() or region_key,
+            "center_lat": lat,
+            "center_lon": lon,
+            "zoom": zoom,
+        }
+
+    if enabled and not regions:
+        regions["eastern_nc"] = {
+            "label": "Eastern NC",
+            "center_lat": 35.35,
+            "center_lon": -77.25,
+            "zoom": 7,
+        }
+
+    default_region = str(raw.get("DefaultRegion") or "").strip()
+    if default_region not in regions and regions:
+        default_region = next(iter(regions))
+
+    default_leaflet_css_url = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    default_leaflet_js_url = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    leaflet_css_url = str(raw.get("LeafletCssURL") or default_leaflet_css_url).strip()
+    leaflet_js_url = str(raw.get("LeafletJsURL") or default_leaflet_js_url).strip()
+
+    css_integrity_raw = raw.get("LeafletCssIntegrity")
+    js_integrity_raw = raw.get("LeafletJsIntegrity")
+    leaflet_css_integrity = (
+        "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        if css_integrity_raw is None and leaflet_css_url == default_leaflet_css_url
+        else str(css_integrity_raw or "").strip()
+    )
+    leaflet_js_integrity = (
+        "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        if js_integrity_raw is None and leaflet_js_url == default_leaflet_js_url
+        else str(js_integrity_raw or "").strip()
+    )
+
+    raw_mode = str(raw.get("Mode") or "").strip().lower()
+    if raw_mode not in {"wms", "arcgis"}:
+        raw_mode = "wms"
+
+    service_url = str(
+        raw.get("ServiceURL")
+        or "https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity/MapServer"
+    ).strip()
+    layer_ids = _parse_layer_ids(raw.get("LayerIds", raw.get("Layers")))
+    is_noaa_reflectivity = "mapservices.weather.noaa.gov" in service_url and "radar_base_reflectivity" in service_url
+    use_default_layers = as_bool(raw.get("UseDefaultLayers"), default=is_noaa_reflectivity)
+
+    default_wms_url = "https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows"
+    wms_url = str(raw.get("WmsURL") or raw.get("WMSURL") or raw.get("WmsUrl") or default_wms_url).strip()
+    wms_layers = str(raw.get("WmsLayers") or raw.get("WMSLayers") or raw.get("WmsLayer") or "conus_bref_qcd").strip()
+    wms_version = str(raw.get("WmsVersion") or raw.get("WMSVersion") or "1.1.1").strip() or "1.1.1"
+    wms_format = str(raw.get("WmsFormat") or raw.get("WMSFormat") or "image/png").strip() or "image/png"
+    wms_styles = str(raw.get("WmsStyles") or raw.get("WMSStyles") or "").strip()
+    wms_time = str(raw.get("WmsTime") or raw.get("WMSTime") or "").strip()
+
+    source_label = str(raw.get("SourceLabel") or "").strip()
+    if not source_label:
+        source_label = "NOAA/NCEP MRMS WMS" if raw_mode == "wms" else "NOAA/NWS ArcGIS MapServer"
+
+    return {
+        "enabled": bool(enabled and regions),
+        "title": str(raw.get("Title") or "Weather Radar").strip() or "Weather Radar",
+        "mode": raw_mode,
+        "source_label": source_label,
+        "height": _as_int(raw.get("Height"), 620, minimum=320, maximum=1200),
+        "opacity": _as_float(raw.get("Opacity"), 0.85 if raw_mode == "wms" else 0.72, minimum=0.05, maximum=1.0),
+        "refresh_seconds": _as_int(raw.get("RefreshSeconds"), 300, minimum=60, maximum=3600),
+        "default_region": default_region,
+        "regions": regions,
+        "service_url": service_url,
+        "layer_ids": [] if use_default_layers else layer_ids,
+        "use_default_layers": use_default_layers,
+        "wms_url": wms_url,
+        "wms_layers": wms_layers,
+        "wms_version": wms_version,
+        "wms_format": wms_format,
+        "wms_styles": wms_styles,
+        "wms_time": wms_time,
+        "wms_transparent": as_bool(raw.get("WmsTransparent"), default=True),
+        "wms_tiled": as_bool(raw.get("WmsTiled"), default=True),
+        "wms_uppercase": as_bool(raw.get("WmsUppercase"), default=True),
+        "leaflet_css_url": leaflet_css_url,
+        "leaflet_js_url": leaflet_js_url,
+        "esri_leaflet_js_url": str(raw.get("EsriLeafletJsURL") or "https://cdn.jsdelivr.net/npm/esri-leaflet@3.0.19/dist/esri-leaflet.js").strip(),
+        "leaflet_css_integrity": leaflet_css_integrity,
+        "leaflet_js_integrity": leaflet_js_integrity,
+        "cdn_crossorigin": str(raw.get("CdnCrossorigin") or "").strip(),
+        "base_tile_url": str(raw.get("BaseTileURL") or "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").strip(),
+        "base_tile_attribution": str(
+            raw.get("BaseTileAttribution")
+            or '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        ),
+        "radar_attribution": str(raw.get("RadarAttribution") or "NOAA/NWS/NCEP"),
+        "image_format": str(raw.get("ImageFormat") or "png32").strip() or "png32",
+        "disable_cache": as_bool(raw.get("DisableCache"), default=True),
+        "startup_delay_ms": _as_int(raw.get("StartupDelayMs"), 350, minimum=0, maximum=5000),
+        "max_zoom": _as_int(raw.get("MaxZoom"), 18, minimum=8, maximum=20),
+        "scroll_wheel_zoom": as_bool(raw.get("ScrollWheelZoom"), default=False),
+    }
+
+
 def create_app(config_path: str | None = None) -> Flask:
     cfg_path = config_path or str(BASE_DIR / "config.yaml")
     initial_config = load_config(cfg_path)
@@ -248,8 +467,10 @@ def create_app(config_path: str | None = None) -> Flask:
         return render_template(
             "index.html",
             dashboard=dashboard,
+            county_chat_links=county_chat_links_by_label(config),
             dev=dev_flag,
             generated_at=format_et(datetime.now(timezone.utc).isoformat()),
+            radar=radar_config_from_config(config),
         )
 
     @app.route("/api/alerts")
@@ -297,12 +518,14 @@ def create_app(config_path: str | None = None) -> Flask:
             logs_raw = []
             db_error = f"Could not open log database at {db_path}: {exc}"
         labels = {str(k): str(v) for k, v in (config.get("Alerting", {}).get("CountyLabels") or {}).items()}
+        chat_links = county_chat_links_by_code(config)
         formatted = []
         for entry in logs_raw:
             zone = str(entry.get("county") or "UNKNOWN")
             copy = dict(entry)
             copy["timestamp_et"] = format_et(str(entry.get("timestamp") or ""))
             copy["county_label"] = labels.get(zone, zone)
+            copy["county_chat_link"] = chat_links.get(zone, "")
             formatted.append(copy)
         used_zones = sorted({str(entry.get("county") or "UNKNOWN") for entry in logs_raw})
         county_labels = {zone: labels.get(zone, zone) for zone in used_zones}

@@ -34,7 +34,11 @@
     <article class="log-entry" data-county="{{ entry.county }}">
       <header>
         <div>
-          <span class="log-kicker">{{ entry.county_label }}</span>
+          {% if entry.county_chat_link %}
+            <a class="log-kicker county-chat-link subtle" href="{{ entry.county_chat_link }}" target="_blank" rel="noopener noreferrer">{{ entry.county_label }}<span class="county-chat-link-icon" aria-hidden="true">↗</span><span class="sr-only"> Telegram chat</span></a>
+          {% else %}
+            <span class="log-kicker">{{ entry.county_label }}</span>
+          {% endif %}
           <strong>{{ entry.event }}</strong>
         </div>
         <time>{{ entry.timestamp_et }}</time>

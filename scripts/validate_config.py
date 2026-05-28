@@ -56,6 +56,25 @@ def main() -> int:
         if len(webhook_token) < 24:
             warnings.append("Webapp.WebhookToken should be at least 24 characters")
 
+
+    radar = web.get("Radar") or {}
+    if isinstance(radar, dict) and as_bool(radar.get("Enabled"), default=False):
+        regions = radar.get("Regions") or {}
+        if not isinstance(regions, dict) or not regions:
+            warnings.append("Webapp.Radar.Enabled is true but no Radar.Regions are configured; the app will use its default Eastern NC region")
+        default_region = str(radar.get("DefaultRegion") or "")
+        if default_region and isinstance(regions, dict) and default_region not in regions:
+            warnings.append(f"Webapp.Radar.DefaultRegion {default_region!r} is not listed under Webapp.Radar.Regions")
+        for url_key in ("LeafletCssURL", "LeafletJsURL", "EsriLeafletJsURL", "ServiceURL", "WmsURL", "WMSURL", "BaseTileURL"):
+            url_value = str(radar.get(url_key) or "")
+            if url_value and not url_value.startswith("https://"):
+                warnings.append(f"Webapp.Radar.{url_key} should use https://")
+        mode = str(radar.get("Mode") or "wms").lower()
+        if mode not in {"wms", "arcgis"}:
+            warnings.append("Webapp.Radar.Mode should be 'wms' or 'arcgis'; the app will default to wms")
+        if mode == "wms" and not str(radar.get("WmsLayers") or radar.get("WMSLayers") or "conus_bref_qcd").strip():
+            errors.append("Webapp.Radar.WmsLayers is required when Radar.Mode is wms")
+
     inject_alerts = config.get("DEV", {}).get("INJECTALERTS")
     if inject_alerts and isinstance(inject_alerts, dict):
         warnings.append("DEV.INJECTALERTS is a single mapping; list syntax is recommended")

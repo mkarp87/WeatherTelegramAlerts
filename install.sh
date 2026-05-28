@@ -9,7 +9,7 @@ INSTALL_SERVICES="1"
 START_MODE="auto"
 MAIN_SERVICE="weather-alerts.service"
 RECREATE_VENV="1"
-INSTALL_VERSION="2.1.4"
+INSTALL_VERSION="2.2.5"
 
 log() {
   printf '[install] %s\n' "$*"

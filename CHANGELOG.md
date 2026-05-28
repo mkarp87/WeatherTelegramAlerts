@@ -1,5 +1,34 @@
 # Changelog
 
+## 2.2.5
+
+- Added optional dashboard links from county names to Telegram public or invite links.
+- Removed the redundant `County` label above each county card title.
+- Added Telegram chat links to event-log county labels when configured.
+
+## 2.2.4
+
+- Switched the default dashboard radar layer to the NOAA/NCEP CONUS BREF QCD WMS service.
+- Added `Mode: "wms"` radar support using Leaflet's built-in WMS tile layer.
+- Kept legacy ArcGIS radar support behind `Mode: "arcgis"`.
+- Added radar status text for loaded, loading, and tile-error states.
+- Increased the default radar opacity for better visibility over the base map.
+
+## 2.2.2
+
+- Made radar loading more stable across browser reloads by initializing the radar layer after the Leaflet map has a measured size.
+- Enabled Esri Leaflet `disableCache` for radar export requests by default.
+- Defaulted NOAA radar to the service's visible mosaic layers even when older configs still contain `LayerIds: [3]`.
+- Added `UseDefaultLayers`, `DisableCache`, and `StartupDelayMs` radar config options.
+- Updated dashboard static asset cache-busting strings.
+
+## 2.2.1
+
+- Changed the default radar layer behavior to use the NOAA service default visible mosaic instead of forcing sublayer `3`.
+- Documented `LayerIds: []` as the recommended radar setting.
+- Explicitly requests transparent PNG radar images from the ArcGIS map service.
+- Improved dashboard radar error messages when the NOAA/NWS layer request fails.
+
 ## 2.1.4
 
 - Initialized the SQLite log database during install and repair as the service user.

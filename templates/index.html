@@ -1,5 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Current Alerts · NC4ES Weather Alerts{% endblock %}
+{% block title %}Current Alerts ·  Weather Alerts{% endblock %}
+{% block extra_head %}
+{% if radar.enabled %}
+  <link rel="stylesheet" href="{{ radar.leaflet_css_url }}"{% if radar.leaflet_css_integrity %} integrity="{{ radar.leaflet_css_integrity }}"{% endif %} crossorigin="{{ radar.cdn_crossorigin }}">
+{% endif %}
+{% endblock %}
 {% block content %}
 {% set ns = namespace(active=0) %}
 {% for zone, alerts in dashboard.items() %}
@@ -10,7 +15,7 @@
   <div>
     <p class="eyebrow">Live dashboard</p>
     <h1>Current Weather Alerts</h1>
-    <p class="hero-copy">Monitoring configured North Carolina counties and routing active NWS alerts to the correct Telegram groups.</p>
+    <p class="hero-copy">Monitoring configured for counties and routing active NWS alerts to Telegram groups.</p>
   </div>
   <div class="status-stack">
     {% if dev %}<span class="pill pill-warning">DEV injection enabled</span>{% endif %}
@@ -33,13 +38,46 @@
   </article>
 </section>
 
+{% if radar.enabled %}
+<section class="radar-card" aria-label="Weather radar">
+  <header class="radar-header">
+    <div>
+      <p class="eyebrow">Radar</p>
+      <h2>{{ radar.title }}</h2>
+      <p class="radar-copy">Weather Map loaded from {{ radar.source_label }}. </p>
+    </div>
+    <div class="radar-controls">
+      <label class="filter-label" for="radar-region">Region</label>
+      <select id="radar-region" name="radar-region">
+        {% for key, region in radar.regions.items() %}
+        <option value="{{ key }}"{% if key == radar.default_region %} selected{% endif %}>{{ region.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </header>
+  <div class="radar-map-wrap">
+    <div id="weather-radar-map" class="radar-map" style="height: {{ radar.height }}px"></div>
+    <div id="radar-error" class="radar-error" hidden></div>
+  </div>
+  <footer class="radar-footer">
+    <span>Refresh interval: {{ radar.refresh_seconds }} seconds</span>
+    <span id="radar-status">Radar layer initializing...</span>
+    <span>Layer opacity: {{ (radar.opacity * 100)|round|int }}%</span>
+  </footer>
+</section>
+{% endif %}
+
 <section class="county-grid">
   {% for zone, alerts in dashboard.items() %}
   <article class="county-card {% if alerts %}active{% else %}clear{% endif %}">
     <header class="county-card-header">
       <div>
-        <span class="county-label">County</span>
-        <h2>{{ zone }}</h2>
+        {% set county_chat_link = county_chat_links.get(zone) if county_chat_links else "" %}
+        {% if county_chat_link %}
+          <h2><a class="county-chat-link" href="{{ county_chat_link }}" target="_blank" rel="noopener noreferrer">{{ zone }}<span class="county-chat-link-icon" aria-hidden="true">↗</span><span class="sr-only"> Telegram chat</span></a></h2>
+        {% else %}
+          <h2>{{ zone }}</h2>
+        {% endif %}
       </div>
       {% if alerts %}
         <span class="status-badge status-active">{{ alerts|length }} active</span>
@@ -70,4 +108,12 @@
   </article>
   {% endfor %}
 </section>
+{% endblock %}
+{% block extra_scripts %}
+{% if radar.enabled %}
+  <script src="{{ radar.leaflet_js_url }}"{% if radar.leaflet_js_integrity %} integrity="{{ radar.leaflet_js_integrity }}"{% endif %} crossorigin="{{ radar.cdn_crossorigin }}"></script>
+  {% if radar.mode == "arcgis" %}<script src="{{ radar.esri_leaflet_js_url }}" crossorigin="{{ radar.cdn_crossorigin }}"></script>{% endif %}
+  <script id="radar-config" type="application/json">{{ radar|tojson }}</script>
+  <script src="{{ url_for('static', filename='radar.js') }}?v=20260528-chatlinks"></script>
+{% endif %}
 {% endblock %}

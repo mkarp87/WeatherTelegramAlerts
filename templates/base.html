@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b1120">
   <title>{% block title %}NC4ES Weather Alerts{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260528-ui4">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260528-chatlinks">
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
   <div class="page-shell">
@@ -36,5 +37,6 @@
       <span>Data source: National Weather Service API</span>
     </footer>
   </div>
+  {% block extra_scripts %}{% endblock %}
 </body>
 </html>
