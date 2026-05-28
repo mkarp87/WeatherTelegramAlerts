@@ -88,17 +88,6 @@ X-WeatherAlerts-Token: YOUR_TOKEN
 
 The installer copies your config to `/etc/weathertelegramalerts/config.yaml` with restrictive file permissions.
 
-## Uploading to GitHub
-
-The ZIP is safe to upload as source because it does not include the private NC4ES config. To push with git from the unzipped directory:
-
-```bash
-./scripts/push_to_github.sh https://github.com/mkarp87/WeatherTelegramAlerts.git main
-git commit -m "Harden WeatherTelegramAlerts deployment"
-git push origin main
-```
-
-The push helper refuses to continue if `config.yaml` is present in the repository root.
 
 ## What changed in this hardened version
 
