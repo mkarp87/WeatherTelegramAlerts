@@ -93,6 +93,14 @@ body::before {
   box-shadow: 0 12px 30px rgba(56, 189, 248, 0.25);
 }
 
+.brand-logo {
+  display: block;
+  width: auto;
+  max-width: 9.5rem;
+  height: 3rem;
+  object-fit: contain;
+}
+
 .brand,
 .subtitle {
   display: block;
@@ -523,6 +531,21 @@ select:focus {
   font-size: 0.82rem;
 }
 
+
+.error-panel {
+  color: #fecaca;
+}
+
+.error-ring {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 0.18rem solid rgba(239, 68, 68, 0.42);
+  background: rgba(239, 68, 68, 0.22);
+  box-shadow: 0 0 0 0.42rem rgba(239, 68, 68, 0.08);
+}
+
 [hidden] {
   display: none !important;
 }
@@ -549,6 +572,11 @@ select:focus {
 @media (max-width: 560px) {
   .page-shell {
     padding: 0.65rem;
+  }
+
+  .brand-logo {
+    max-width: 8rem;
+    height: 2.5rem;
   }
 
   .county-grid {

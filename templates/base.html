@@ -5,13 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b1120">
   <title>{% block title %}NC4ES Weather Alerts{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260528-ui3">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260528-ui4">
 </head>
 <body>
   <div class="page-shell">
     <header class="site-header">
       <a class="brand-block" href="{{ url_for('current') }}" aria-label="NC4ES Weather Alerts home">
-        <span class="brand-mark">NC</span>
+        {% if brand_logo_url %}
+          <img class="brand-logo" src="{{ brand_logo_url }}" alt="{{ brand_logo_alt }}">
+        {% else %}
+          <span class="brand-mark">NC</span>
+        {% endif %}
         <span>
           <span class="brand">NC4ES Weather Alerts</span>
           <span class="subtitle">National Weather Service alert monitor</span>

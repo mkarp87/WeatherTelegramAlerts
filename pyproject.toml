@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "weathertelegramalerts"
-version = "2.0.2"
+version = "2.1.4"
 description = "NWS weather alerts routed to Telegram with a Flask dashboard."
 requires-python = ">=3.9"
 dependencies = [
@@ -17,7 +17,8 @@ dependencies = [
 ]
 
 [project.scripts]
-weather-alerts = "weather_alerts.poller:cli"
+weather-alerts = "weather_alerts.unified:cli"
+weather-alerts-poller = "weather_alerts.poller:cli"
 weather-alerts-web = "weather_alerts.web:cli"
 
 [tool.setuptools]

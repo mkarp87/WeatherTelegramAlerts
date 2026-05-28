@@ -33,10 +33,24 @@ def save_state(path: str | os.PathLike[str], state: list[dict[str, Any]]) -> Non
     state_path = Path(path)
     state_path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = state_path.with_suffix(state_path.suffix + ".tmp")
-    with temp_path.open("w", encoding="utf-8") as handle:
-        json.dump(state, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
-    os.replace(temp_path, state_path)
+
+    # A previous manual/root run can leave a root-owned .tmp file behind. If the
+    # service user owns the data directory, it can unlink that stale temp file.
+    try:
+        temp_path.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+    try:
+        with temp_path.open("w", encoding="utf-8") as handle:
+            json.dump(state, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            handle.write("\n")
+        os.replace(temp_path, state_path)
+    except PermissionError as exc:
+        raise PermissionError(
+            f"Cannot write state file {state_path}. Ensure the service user owns "
+            f"{state_path.parent} and remove stale temp files such as {temp_path}."
+        ) from exc
 
 
 def alert_key(entry: dict[str, Any]) -> str:

@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 import requests
 
 from .config import BASE_DIR, as_bool, load_config, resolve_path
+from .db import insert_log, prune_logs
 from .nws import NWSClient, time_keys
 from .state import alert_key, load_state, save_state
 from .telegram import TelegramSender
@@ -123,18 +124,35 @@ def current_alerts_from_config(config: dict[str, Any]) -> tuple[list[dict[str, A
 
 
 def post_web_log(config: dict[str, Any], *, county: str | None, event: str, description: str) -> None:
+    """Record an event for the dashboard.
+
+    In unified-service mode this writes directly to SQLite, avoiding a fragile
+    HTTP POST from the poller back into the local web app. Set
+    Webapp.DirectLog: false to use Webapp.LogEndpoint instead.
+    """
     web_cfg = config.get("Webapp", {}) or {}
+    timestamp = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "timestamp": timestamp,
+        "county": county or "ALL",
+        "event": event,
+        "description": description,
+    }
+
+    if as_bool(web_cfg.get("DirectLog"), default=True):
+        try:
+            db_path = resolve_path(web_cfg.get("LogDatabase", "data/alert_logs.sqlite3"), base_dir=BASE_DIR)
+            insert_log(db_path, payload)
+            prune_logs(db_path, days=int(web_cfg.get("LogRetentionDays", 7) or 7))
+        except Exception as exc:
+            LOGGER.warning("Direct dashboard log write failed: %s", exc)
+        return
+
     url = web_cfg.get("LogEndpoint")
     if not url:
         return
     token = web_cfg.get("WebhookToken") or web_cfg.get("LogToken")
     headers = {"X-WeatherAlerts-Token": str(token)} if token else {}
-    payload = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "county": county or "ALL",
-        "event": event,
-        "description": description,
-    }
     try:
         response = requests.post(str(url), json=payload, headers=headers, timeout=5)
         if response.status_code >= 400:

@@ -1,6 +1,6 @@
 [Unit]
-Description=WeatherTelegramAlerts Telegram poller
-After=network-online.target weather-alerts-web.service
+Description=WeatherTelegramAlerts unified service
+After=network-online.target
 Wants=network-online.target
 
 [Service]
@@ -8,7 +8,7 @@ Type=simple
 User=weatheralerts
 Group=weatheralerts
 WorkingDirectory=/opt/WeatherTelegramAlerts
-ExecStart=/opt/WeatherTelegramAlerts/.venv/bin/python /opt/WeatherTelegramAlerts/WeatherAlerts.py -c /opt/WeatherTelegramAlerts/config.yaml
+ExecStart=/opt/WeatherTelegramAlerts/.venv/bin/python /opt/WeatherTelegramAlerts/app.py -c /opt/WeatherTelegramAlerts/config.yaml
 Restart=always
 RestartSec=10
 Environment=PYTHONUNBUFFERED=1

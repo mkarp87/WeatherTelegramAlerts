@@ -20,11 +20,16 @@ CREATE INDEX IF NOT EXISTS idx_alert_log_county ON alert_log(county);
 
 def connect(db_path: str | Path) -> sqlite3.Connection:
     path = Path(db_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
-    return conn
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(path)
+        conn.row_factory = sqlite3.Row
+        conn.executescript(SCHEMA)
+        return conn
+    except (OSError, sqlite3.Error) as exc:
+        raise RuntimeError(
+            f"Cannot open SQLite log database at {path}. Ensure the service user can write to {path.parent}."
+        ) from exc
 
 
 def insert_log(db_path: str | Path, entry: dict[str, Any]) -> None:

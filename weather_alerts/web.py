@@ -15,7 +15,7 @@ from flask import Flask, abort, jsonify, redirect, render_template, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import BASE_DIR, as_bool, load_config, resolve_path
-from .db import insert_log, list_logs, prune_logs
+from .db import connect, insert_log, list_logs, prune_logs
 from .nws import NWSClient, time_keys
 from .text import modify_description
 
@@ -193,6 +193,10 @@ def create_app(config_path: str | None = None) -> Flask:
     cfg_path = config_path or str(BASE_DIR / "config.yaml")
     initial_config = load_config(cfg_path)
     setup_logging(initial_config)
+    try:
+        connect(db_path_from_config(initial_config)).close()
+    except Exception as exc:
+        LOGGER.warning("Alert log database is not available yet: %s", exc)
 
     app = Flask(
         __name__,
@@ -204,6 +208,20 @@ def create_app(config_path: str | None = None) -> Flask:
     app.url_map.strict_slashes = False
     app.config["WEATHERALERTS_CONFIG"] = cfg_path
     app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024
+
+    @app.context_processor
+    def inject_branding():
+        try:
+            config = load_config(app.config["WEATHERALERTS_CONFIG"])
+            web_cfg = config.get("Webapp", {}) or {}
+        except Exception:
+            web_cfg = {}
+        logo_url = str(web_cfg.get("LogoURL") or web_cfg.get("LogoUrl") or web_cfg.get("Logo") or "").strip()
+        logo_alt = str(web_cfg.get("LogoAlt") or "NC4ES Weather Alerts").strip() or "NC4ES Weather Alerts"
+        return {
+            "brand_logo_url": logo_url,
+            "brand_logo_alt": logo_alt,
+        }
 
     def cfg() -> dict[str, Any]:
         config = load_config(app.config["WEATHERALERTS_CONFIG"])
@@ -271,7 +289,13 @@ def create_app(config_path: str | None = None) -> Flask:
         config = cfg()
         hours = int(request.args.get("hours", config.get("Webapp", {}).get("LogHours", 24)) or 24)
         db_path = db_path_from_config(config)
-        logs_raw = list_logs(db_path, hours=hours)
+        db_error = None
+        try:
+            logs_raw = list_logs(db_path, hours=hours)
+        except Exception as exc:
+            LOGGER.exception("Could not read alert log database: %s", exc)
+            logs_raw = []
+            db_error = f"Could not open log database at {db_path}: {exc}"
         labels = {str(k): str(v) for k, v in (config.get("Alerting", {}).get("CountyLabels") or {}).items()}
         formatted = []
         for entry in logs_raw:
@@ -288,13 +312,18 @@ def create_app(config_path: str | None = None) -> Flask:
             labels=county_labels,
             hours=hours,
             generated_at=format_et(datetime.now(timezone.utc).isoformat()),
+            db_error=db_error,
         )
 
     @app.route("/weatheralerts/logs.json")
     def logs_json():
         config = cfg()
         hours = int(request.args.get("hours", config.get("Webapp", {}).get("LogHours", 24)) or 24)
-        return jsonify(list_logs(db_path_from_config(config), hours=hours))
+        try:
+            return jsonify(list_logs(db_path_from_config(config), hours=hours))
+        except Exception as exc:
+            LOGGER.exception("Could not read alert log database JSON: %s", exc)
+            return jsonify({"error": "log database unavailable", "detail": str(exc)}), 500
 
     return app
 
@@ -304,7 +333,7 @@ def cli(argv: list[str] | None = None) -> int:
     parser.add_argument("-c", "--config", default=str(BASE_DIR / "config.yaml"), help="Path to YAML config file")
     parser.add_argument("-p", "--port", type=int, default=None, help="Port to run the web server on")
     parser.add_argument("--host", default=None, help="Host/IP to bind")
-    parser.add_argument("--waitress", action="store_true", help="Run with Waitress instead of Flask's development server")
+    parser.add_argument("--waitress", action="store_true", help="Run this compatibility wrapper with the Waitress WSGI server")
     args = parser.parse_args(argv)
 
     config = load_config(args.config)

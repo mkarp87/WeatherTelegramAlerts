@@ -24,7 +24,12 @@
 </section>
 
 <section class="log-list" id="log-list">
-  {% if logs %}
+  {% if db_error %}
+    <article class="empty-panel error-panel">
+      <span class="error-ring" aria-hidden="true"></span>
+      <p>{{ db_error }}</p>
+    </article>
+  {% elif logs %}
     {% for entry in logs %}
     <article class="log-entry" data-county="{{ entry.county }}">
       <header>
