@@ -1,0 +1,71 @@
+# WeatherTelegramAlerts sample configuration
+# Copy this file to config.yaml for local testing, or use a separate private config
+# with the installer. Do not commit config.yaml or any private config.
+
+WeatherAlerts:
+  PollInterval: 300
+  Uppercase: false
+  RequestTimeout: 10
+  StateFile: "data/last_alerts.json"
+  # NWS asks for a User-Agent that identifies your app and includes contact info.
+  UserAgent: "WeatherTelegramAlerts/2.0 (https://github.com/mkarp87/WeatherTelegramAlerts)"
+
+Alerting:
+  CountyCodes:
+    - NCC013 # Beaufort
+    - NCC147 # Pitt
+
+  CountyLabels:
+    NCC013: "Beaufort County"
+    NCC147: "Pitt County"
+
+  CountyChatMap:
+    NCC013: "-1000000000001"
+    NCC147: "-1000000000011"
+
+  GlobalBlockedEvents:
+    - "Routine Weekly Test"
+    - "Required Weekly Test"
+    - "Required Monthly Test"
+    - "Practice/Demo Warning"
+    - "Administrative Message"
+    - "National Audible Test"
+    - "National Information Center"
+    - "Child Abduction Emergency"
+    - "AMBER Alert"
+    - "Tsunami Warning"
+
+  # Valid values: onset or effective
+  TimeType: onset
+
+Telegram:
+  # Prefer TELEGRAM_BOT_TOKEN in the environment, or put the token in a private config.yaml.
+  BotToken: "PUT_YOUR_TELEGRAM_BOT_TOKEN_HERE"
+  ChatID: "-1000000000000"
+
+Logging:
+  Debug: false
+  FileLogDir: "logs"
+
+DEV:
+  INJECT: false
+  PrefixMessage: "THIS IS A TEST OF THE WEATHER ALERT SYSTEM. "
+  InjectChatIDs: []
+  INJECTALERTS:
+    - Code: NCC147
+      Title: "Test Weather Alert"
+      Description: "This is a test alert for dashboard and Telegram validation."
+
+SkyDescribe:
+  MaxWords: 300
+
+Webapp:
+  Host: "0.0.0.0"
+  Port: 8085
+  LogEndpoint: "http://127.0.0.1:8085/weatheralerts/log"
+  RequireWebhookToken: true
+  WebhookToken: "CHANGE-ME-TO-A-LONG-RANDOM-SECRET"
+  CacheSeconds: 90
+  LogDatabase: "data/alert_logs.sqlite3"
+  LogHours: 24
+  LogRetentionDays: 7

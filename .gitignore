@@ -1,0 +1,25 @@
+# Local/private configuration and secrets
+config.yaml
+config.*.private.yaml
+.env
+
+# Runtime state and logs
+data/
+logs/
+last_alerts.json
+*.sqlite3
+*.sqlite3-*
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/

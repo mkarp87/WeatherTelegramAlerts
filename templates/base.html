@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}NC4ES Weather Alerts{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <a class="brand" href="{{ url_for('current') }}">NC4ES Weather Alerts</a>
+      <p class="subtitle">National Weather Service alert monitor</p>
+    </div>
+    <nav>
+      <a href="{{ url_for('current') }}">Current Alerts</a>
+      <a href="{{ url_for('logs') }}">Event Logs</a>
+    </nav>
+  </header>
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

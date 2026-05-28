@@ -1,0 +1,17 @@
+[Unit]
+Description=WeatherTelegramAlerts web dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=weatheralerts
+Group=weatheralerts
+WorkingDirectory=/opt/weathertelegramalerts
+ExecStart=/opt/weathertelegramalerts/.venv/bin/python /opt/weathertelegramalerts/webapp.py -c /etc/weathertelegramalerts/config.yaml --waitress
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
