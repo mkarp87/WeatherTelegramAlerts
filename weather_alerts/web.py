@@ -64,6 +64,25 @@ def token_is_valid(config: dict[str, Any], provided: str) -> bool:
     return hmac.compare_digest(provided or "", expected)
 
 
+
+def alert_kind_from_event(event: Any) -> str:
+    text = str(event or "").lower()
+    if "tornado" in text:
+        return "tornado"
+    if "severe thunderstorm" in text or "extreme wind" in text:
+        return "severe"
+    if "flash flood" in text or "flood" in text or "storm surge" in text or "coastal flood" in text:
+        return "flood"
+    if "winter" in text or "snow" in text or "ice" in text or "blizzard" in text or "freeze" in text:
+        return "winter"
+    if "watch" in text:
+        return "watch"
+    if "advisory" in text:
+        return "advisory"
+    if "statement" in text:
+        return "statement"
+    return "alert"
+
 def normalize_inject_alerts(raw: Any) -> list[dict[str, Any]]:
     if not raw:
         return []
@@ -113,17 +132,19 @@ def fetch_dashboard_alerts_for_zone(
             }
         ]
 
-    output = [
-        {
-            "event": str(item.get("Title") or "Weather Alert"),
-            "description": modify_description(
-                f"{item.get('Title')}: {item.get('Description') or ''}",
-                max_words=max_words,
-            ),
-            "kind": "alert",
-        }
-        for item in raw_alerts
-    ]
+    output = []
+    for item in raw_alerts:
+        title = str(item.get("Title") or "Weather Alert")
+        output.append(
+            {
+                "event": title,
+                "description": modify_description(
+                    f"{title}: {item.get('Description') or ''}",
+                    max_words=max_words,
+                ),
+                "kind": alert_kind_from_event(title),
+            }
+        )
     _ALERT_CACHE[key] = (now_ts, output)
     return output
 
@@ -173,7 +194,12 @@ def create_app(config_path: str | None = None) -> Flask:
     initial_config = load_config(cfg_path)
     setup_logging(initial_config)
 
-    app = Flask(__name__, template_folder=str(BASE_DIR / "templates"), static_folder=str(BASE_DIR / "static"))
+    app = Flask(
+        __name__,
+        template_folder=str(BASE_DIR / "templates"),
+        static_folder=str(BASE_DIR / "static"),
+        static_url_path="/weatheralerts/static",
+    )
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     app.url_map.strict_slashes = False
     app.config["WEATHERALERTS_CONFIG"] = cfg_path
@@ -201,7 +227,12 @@ def create_app(config_path: str | None = None) -> Flask:
         config = cfg()
         dashboard = build_dashboard(config)
         dev_flag = as_bool(config.get("DEV", {}).get("INJECT"), default=False)
-        return render_template("index.html", dashboard=dashboard, dev=dev_flag)
+        return render_template(
+            "index.html",
+            dashboard=dashboard,
+            dev=dev_flag,
+            generated_at=format_et(datetime.now(timezone.utc).isoformat()),
+        )
 
     @app.route("/api/alerts")
     def api_alerts():
@@ -251,7 +282,13 @@ def create_app(config_path: str | None = None) -> Flask:
             formatted.append(copy)
         used_zones = sorted({str(entry.get("county") or "UNKNOWN") for entry in logs_raw})
         county_labels = {zone: labels.get(zone, zone) for zone in used_zones}
-        return render_template("logs.html", logs=formatted, labels=county_labels, hours=hours)
+        return render_template(
+            "logs.html",
+            logs=formatted,
+            labels=county_labels,
+            hours=hours,
+            generated_at=format_et(datetime.now(timezone.utc).isoformat()),
+        )
 
     @app.route("/weatheralerts/logs.json")
     def logs_json():

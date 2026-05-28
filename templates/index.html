@@ -1,24 +1,71 @@
 {% extends "base.html" %}
-{% block title %}Current Alerts{% endblock %}
+{% block title %}Current Alerts · NC4ES Weather Alerts{% endblock %}
 {% block content %}
-<section class="page-title">
-  <h1>Current Alerts</h1>
-  {% if dev %}<span class="badge">DEV injection enabled</span>{% endif %}
+{% set ns = namespace(active=0) %}
+{% for zone, alerts in dashboard.items() %}
+  {% set ns.active = ns.active + (alerts|length) %}
+{% endfor %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Live dashboard</p>
+    <h1>Current Weather Alerts</h1>
+    <p class="hero-copy">Monitoring configured North Carolina counties and routing active NWS alerts to the correct Telegram groups.</p>
+  </div>
+  <div class="status-stack">
+    {% if dev %}<span class="pill pill-warning">DEV injection enabled</span>{% endif %}
+    <span class="pill">Updated {{ generated_at }}</span>
+  </div>
+</section>
+
+<section class="summary-grid" aria-label="Dashboard summary">
+  <article class="summary-card">
+    <span class="summary-label">Counties monitored</span>
+    <strong>{{ dashboard|length }}</strong>
+  </article>
+  <article class="summary-card {% if ns.active > 0 %}summary-active{% else %}summary-clear{% endif %}">
+    <span class="summary-label">Active alert entries</span>
+    <strong>{{ ns.active }}</strong>
+  </article>
+  <article class="summary-card">
+    <span class="summary-label">Dashboard state</span>
+    <strong>{% if ns.active > 0 %}Active{% else %}Clear{% endif %}</strong>
+  </article>
 </section>
 
 <section class="county-grid">
   {% for zone, alerts in dashboard.items() %}
-  <article class="county-card">
-    <h2>{{ zone }}</h2>
-    {% if alerts %}
-      {% for alert in alerts %}
-      <div class="alert-box alert-{{ alert.kind|default('alert') }}">
-        <h3>{{ alert.event }}</h3>
-        <p>{{ alert.description }}</p>
+  <article class="county-card {% if alerts %}active{% else %}clear{% endif %}">
+    <header class="county-card-header">
+      <div>
+        <span class="county-label">County</span>
+        <h2>{{ zone }}</h2>
       </div>
+      {% if alerts %}
+        <span class="status-badge status-active">{{ alerts|length }} active</span>
+      {% else %}
+        <span class="status-badge status-clear">Clear</span>
+      {% endif %}
+    </header>
+
+    {% if alerts %}
+      <div class="alert-list">
+      {% for alert in alerts %}
+        <section class="alert-box alert-{{ alert.kind|default('alert') }}">
+          <div class="alert-heading-row">
+            <span class="alert-type">{{ alert.kind|default('alert')|replace('-', ' ')|title }}</span>
+            <span class="alert-dot" aria-hidden="true"></span>
+          </div>
+          <h3>{{ alert.event }}</h3>
+          <p>{{ alert.description }}</p>
+        </section>
       {% endfor %}
+      </div>
     {% else %}
-      <p class="no-alerts">No active alerts.</p>
+      <div class="clear-state">
+        <span class="clear-ring" aria-hidden="true"></span>
+        <p>No active alerts.</p>
+      </div>
     {% endif %}
   </article>
   {% endfor %}

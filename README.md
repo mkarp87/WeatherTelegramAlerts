@@ -15,37 +15,39 @@ WeatherTelegramAlerts monitors active National Weather Service alerts, routes ne
 - Dashboard NWS response caching.
 - Systemd installer for Linux servers.
 
-## Repository safety
+```
 
-- `config.yaml`
-- `config.*.private.yaml`
-- `data/`
-- `logs/`
-- `last_alerts.json`
-- SQLite database files
+The installer will:
 
-## Quick install
+1. Install Python dependencies needed by the app.
+2. Copy the application to `/opt/WeatherTelegramAlerts`.
+3. Copy the private config to `/opt/WeatherTelegramAlerts/config.yaml`.
+4. Create a Python virtual environment.
+5. Ensure `/opt/WeatherTelegramAlerts/data` and `/opt/WeatherTelegramAlerts/logs` are writable by the service user.
+6. Install two systemd services:
+   - `weather-alerts.service` for Telegram/NWS polling.
+   - `weather-alerts-web.service` for the web dashboard.
+7. Start both services when `--start` is supplied.
+
+Dashboard URL:
+
+```text
+http://SERVER_IP:8085/weatheralerts
+```
+
+## Updating an existing install
+
+When `/opt/WeatherTelegramAlerts/config.yaml` already exists, update the app files and preserve that config with:
 
 ```bash
 cd WeatherTelegramAlerts
 sudo ./install.sh --start
 ```
 
-The installer will:
+For a quick repair of an existing `/opt/WeatherTelegramAlerts` install without reinstalling packages:
 
-1. Install Python dependencies needed by the app.
-2. Copy the application to `/opt/weathertelegramalerts`.
-3. Copy the private config to `/etc/weathertelegramalerts/config.yaml`.
-4. Create a Python virtual environment.
-5. Install two systemd services:
-   - `weatheralerts.service`
-   - `weatheralerts-web.service`
-6. Start both services when `--start` is supplied.
-
-Dashboard URL:
-
-```text
-http://SERVER_IP:8085/weatheralerts
+```bash
+sudo ./scripts/repair_existing_install.sh
 ```
 
 ## Manual local run
@@ -69,11 +71,11 @@ python3 WeatherAlerts.py -c config.yaml --once
 ## Service commands
 
 ```bash
-sudo systemctl status weatheralerts.service
-sudo systemctl status weatheralerts-web.service
-sudo journalctl -u weatheralerts.service -f
-sudo journalctl -u weatheralerts-web.service -f
-sudo systemctl restart weatheralerts-web.service weatheralerts.service
+sudo systemctl status weather-alerts.service
+sudo systemctl status weather-alerts-web.service
+sudo journalctl -u weather-alerts.service -f
+sudo journalctl -u weather-alerts-web.service -f
+sudo systemctl restart weather-alerts-web.service weather-alerts.service
 ```
 
 ## Configuration notes
@@ -86,8 +88,7 @@ sudo systemctl restart weatheralerts-web.service weatheralerts.service
 X-WeatherAlerts-Token: YOUR_TOKEN
 ```
 
-The installer copies your config to `/etc/weathertelegramalerts/config.yaml` with restrictive file permissions.
-
+The installer copies your config to `/opt/WeatherTelegramAlerts/config.yaml` with restrictive file permissions and gives the service user ownership of `data/`, `logs/`, and `config.yaml`.
 
 ## What changed in this hardened version
 

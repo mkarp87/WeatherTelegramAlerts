@@ -3,22 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1120">
   <title>{% block title %}NC4ES Weather Alerts{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260528-ui3">
 </head>
 <body>
-  <header class="site-header">
-    <div>
-      <a class="brand" href="{{ url_for('current') }}">NC4ES Weather Alerts</a>
-      <p class="subtitle">National Weather Service alert monitor</p>
-    </div>
-    <nav>
-      <a href="{{ url_for('current') }}">Current Alerts</a>
-      <a href="{{ url_for('logs') }}">Event Logs</a>
-    </nav>
-  </header>
-  <main class="content">
-    {% block content %}{% endblock %}
-  </main>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand-block" href="{{ url_for('current') }}" aria-label="NC4ES Weather Alerts home">
+        <span class="brand-mark">NC</span>
+        <span>
+          <span class="brand">NC4ES Weather Alerts</span>
+          <span class="subtitle">National Weather Service alert monitor</span>
+        </span>
+      </a>
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a href="{{ url_for('current') }}">Current Alerts</a>
+        <a href="{{ url_for('logs') }}">Event Logs</a>
+      </nav>
+    </header>
+
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+      <span>NC4ES Weather Alerts</span>
+      <span>Data source: National Weather Service API</span>
+    </footer>
+  </div>
 </body>
 </html>

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.2
+
+- Changed the default install path to `/opt/WeatherTelegramAlerts`.
+- Changed the default config path to `/opt/WeatherTelegramAlerts/config.yaml`.
+- Renamed systemd services to `weather-alerts.service` and `weather-alerts-web.service`.
+- Corrected the web service so it starts `webapp.py` instead of the Telegram poller.
+- Ensured `data/` and `logs/` under the app directory are owned by the service user to prevent state-write permission errors.
+- Restyled the dashboard and event log pages with a darker card-based interface.
+- Served dashboard static assets under `/weatheralerts/static` for better proxy compatibility.
+
 ## 2.0.0
 
 - Hardened `/weatheralerts/log` with webhook token authentication.

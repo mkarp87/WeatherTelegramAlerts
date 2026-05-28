@@ -13,14 +13,41 @@ WeatherAlerts:
 Alerting:
   CountyCodes:
     - NCC013 # Beaufort
+    - NCC031 # Carteret
+    - NCC049 # Craven
+    - NCC055 # Dare
+    - NCC061 # Duplin
+    - NCC065 # Edgecombe
+    - NCC083 # Halifax
+    - NCC107 # Lenoir
+    - NCC133 # Onslow
+    - NCC137 # Pamlico
     - NCC147 # Pitt
 
   CountyLabels:
     NCC013: "Beaufort County"
+    NCC031: "Carteret County"
+    NCC049: "Craven County"
+    NCC055: "Dare County"
+    NCC061: "Duplin County"
+    NCC065: "Edgecombe County"
+    NCC083: "Halifax County"
+    NCC107: "Lenoir County"
+    NCC133: "Onslow County"
+    NCC137: "Pamlico County"
     NCC147: "Pitt County"
 
   CountyChatMap:
     NCC013: "-1000000000001"
+    NCC031: "-1000000000002"
+    NCC049: "-1000000000003"
+    NCC055: "-1000000000004"
+    NCC061: "-1000000000005"
+    NCC065: "-1000000000006"
+    NCC083: "-1000000000007"
+    NCC107: "-1000000000008"
+    NCC133: "-1000000000009"
+    NCC137: "-1000000000010"
     NCC147: "-1000000000011"
 
   GlobalBlockedEvents:

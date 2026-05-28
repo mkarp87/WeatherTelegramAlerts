@@ -1,11 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Alert Event Logs{% endblock %}
+{% block title %}Alert Event Logs · NC4ES Weather Alerts{% endblock %}
 {% block content %}
-<section class="page-title">
+<section class="hero-panel compact">
   <div>
+    <p class="eyebrow">Event history</p>
     <h1>Alert Event Logs</h1>
-    <p class="muted">Showing the last {{ hours }} hours.</p>
+    <p class="hero-copy">Showing logged Telegram/weather events from the last {{ hours }} hours.</p>
   </div>
+  <div class="status-stack">
+    <span class="pill">{{ logs|length }} entries</span>
+    <span class="pill">Updated {{ generated_at }}</span>
+  </div>
+</section>
+
+<section class="toolbar-panel">
   <label class="filter-label" for="county-filter">Filter by county</label>
   <select id="county-filter">
     <option value="">All counties</option>
@@ -20,15 +28,20 @@
     {% for entry in logs %}
     <article class="log-entry" data-county="{{ entry.county }}">
       <header>
-        <strong>{{ entry.event }}</strong>
-        <span>{{ entry.timestamp_et }}</span>
+        <div>
+          <span class="log-kicker">{{ entry.county_label }}</span>
+          <strong>{{ entry.event }}</strong>
+        </div>
+        <time>{{ entry.timestamp_et }}</time>
       </header>
-      <p class="county-name">{{ entry.county_label }}</p>
       {% if entry.description %}<p>{{ entry.description }}</p>{% endif %}
     </article>
     {% endfor %}
   {% else %}
-    <p class="no-alerts">No logged events in the selected time window.</p>
+    <article class="empty-panel">
+      <span class="clear-ring" aria-hidden="true"></span>
+      <p>No logged events in the selected time window.</p>
+    </article>
   {% endif %}
 </section>
 

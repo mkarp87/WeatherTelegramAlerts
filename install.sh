@@ -1,30 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/opt/weathertelegramalerts"
-CONFIG_DIR="/etc/weathertelegramalerts"
+APP_DIR="/opt/WeatherTelegramAlerts"
+CONFIG_DIR=""
 SERVICE_USER="weatheralerts"
 CONFIG_SOURCE=""
 INSTALL_SERVICES="1"
 START_MODE="auto"
+POLL_SERVICE="weather-alerts.service"
+WEB_SERVICE="weather-alerts-web.service"
 
 usage() {
-  cat <<'EOF'
+  cat <<'USAGE'
 Usage: sudo ./install.sh [options]
 
 Options:
-  --app-dir PATH       Install application files here. Default: /opt/weathertelegramalerts
-  --config PATH        Copy this private config to /etc/weathertelegramalerts/config.yaml
-  --config-dir PATH    Store runtime config here. Default: /etc/weathertelegramalerts
+  --app-dir PATH       Install application files here. Default: /opt/WeatherTelegramAlerts
+  --config PATH        Copy this private config to /opt/WeatherTelegramAlerts/config.yaml
+  --config-dir PATH    Store runtime config here. Default: same as --app-dir
   --user USER          System user for services. Default: weatheralerts
   --no-services        Install files only; do not install systemd units
   --start              Start or restart services after install
   --no-start           Do not start services after install
   -h, --help           Show this help
 
-Recommended:
+Recommended first install:
   sudo ./install.sh --config /path/to/config.NC4ES.private.yaml --start
-EOF
+
+Recommended update when /opt/WeatherTelegramAlerts/config.yaml already exists:
+  sudo ./install.sh --start
+USAGE
 }
 
 while [ "$#" -gt 0 ]; do
@@ -67,7 +72,12 @@ while [ "$#" -gt 0 ]; do
       exit 2
       ;;
   esac
- done
+done
+
+if [ -z "$CONFIG_DIR" ]; then
+  CONFIG_DIR="$APP_DIR"
+fi
+CONFIG_PATH="$CONFIG_DIR/config.yaml"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run this installer as root, for example: sudo ./install.sh --config /path/to/config.yaml --start" >&2
@@ -101,6 +111,12 @@ fi
 
 mkdir -p "$APP_DIR" "$CONFIG_DIR"
 
+# Stop known service names before replacing files. Ignore missing services.
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl stop "$POLL_SERVICE" "$WEB_SERVICE" 2>/dev/null || true
+  systemctl stop weatheralerts.service weatheralerts-web.service 2>/dev/null || true
+fi
+
 tar \
   --exclude='.git' \
   --exclude='.venv' \
@@ -122,27 +138,31 @@ if [ -n "$CONFIG_SOURCE" ]; then
     echo "Config source not found: $CONFIG_SOURCE" >&2
     exit 1
   fi
-  cp "$CONFIG_SOURCE" "$CONFIG_DIR/config.yaml"
+  SRC_REAL="$(readlink -f "$CONFIG_SOURCE")"
+  DEST_REAL="$(readlink -m "$CONFIG_PATH")"
+  if [ "$SRC_REAL" != "$DEST_REAL" ]; then
+    cp "$CONFIG_SOURCE" "$CONFIG_PATH"
+  fi
   CONFIG_READY="1"
-elif [ -f "$CONFIG_DIR/config.yaml" ]; then
+elif [ -f "$CONFIG_PATH" ]; then
   CONFIG_READY="1"
 else
-  cp "$APP_DIR/config.example.yaml" "$CONFIG_DIR/config.yaml"
+  cp "$APP_DIR/config.example.yaml" "$CONFIG_PATH"
   CONFIG_READY="0"
 fi
 
 mkdir -p "$APP_DIR/data" "$APP_DIR/logs"
 chown -R root:root "$APP_DIR"
 chown -R "$SERVICE_USER:$SERVICE_USER" "$APP_DIR/data" "$APP_DIR/logs"
-chown "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR/config.yaml"
-chmod 600 "$CONFIG_DIR/config.yaml"
+chown "$SERVICE_USER:$SERVICE_USER" "$CONFIG_PATH"
+chmod 600 "$CONFIG_PATH"
 chmod 755 "$APP_DIR" "$CONFIG_DIR"
 
 if [ -x "$APP_DIR/scripts/validate_config.py" ]; then
   if command -v runuser >/dev/null 2>&1; then
-    runuser -u "$SERVICE_USER" -- "$APP_DIR/.venv/bin/python" "$APP_DIR/scripts/validate_config.py" "$CONFIG_DIR/config.yaml" || true
+    runuser -u "$SERVICE_USER" -- "$APP_DIR/.venv/bin/python" "$APP_DIR/scripts/validate_config.py" "$CONFIG_PATH" || true
   else
-    su -s /bin/sh -c "\"$APP_DIR/.venv/bin/python\" \"$APP_DIR/scripts/validate_config.py\" \"$CONFIG_DIR/config.yaml\"" "$SERVICE_USER" || true
+    su -s /bin/sh -c "\"$APP_DIR/.venv/bin/python\" \"$APP_DIR/scripts/validate_config.py\" \"$CONFIG_PATH\"" "$SERVICE_USER" || true
   fi
 fi
 
@@ -152,10 +172,14 @@ if [ "$INSTALL_SERVICES" = "1" ] && ! command -v systemctl >/dev/null 2>&1; then
 fi
 
 if [ "$INSTALL_SERVICES" = "1" ]; then
-  cat > /etc/systemd/system/weatheralerts.service <<EOF
+  # Remove older service names from prior packages so only the requested names remain enabled.
+  systemctl disable weatheralerts.service weatheralerts-web.service 2>/dev/null || true
+  rm -f /etc/systemd/system/weatheralerts.service /etc/systemd/system/weatheralerts-web.service
+
+  cat > /etc/systemd/system/$POLL_SERVICE <<EOF_SERVICE
 [Unit]
-Description=WeatherTelegramAlerts poller
-After=network-online.target weatheralerts-web.service
+Description=WeatherTelegramAlerts Telegram poller
+After=network-online.target $WEB_SERVICE
 Wants=network-online.target
 
 [Service]
@@ -163,16 +187,16 @@ Type=simple
 User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$APP_DIR
-ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/WeatherAlerts.py -c $CONFIG_DIR/config.yaml
+ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/WeatherAlerts.py -c $CONFIG_PATH
 Restart=always
 RestartSec=10
 Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF_SERVICE
 
-  cat > /etc/systemd/system/weatheralerts-web.service <<EOF
+  cat > /etc/systemd/system/$WEB_SERVICE <<EOF_SERVICE
 [Unit]
 Description=WeatherTelegramAlerts web dashboard
 After=network-online.target
@@ -183,17 +207,17 @@ Type=simple
 User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$APP_DIR
-ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/webapp.py -c $CONFIG_DIR/config.yaml --waitress
+ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/webapp.py -c $CONFIG_PATH --waitress
 Restart=always
 RestartSec=10
 Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF_SERVICE
 
   systemctl daemon-reload
-  systemctl enable weatheralerts.service weatheralerts-web.service
+  systemctl enable "$WEB_SERVICE" "$POLL_SERVICE"
 
   SHOULD_START="0"
   if [ "$START_MODE" = "yes" ]; then
@@ -203,24 +227,24 @@ EOF
   fi
 
   if [ "$SHOULD_START" = "1" ]; then
-    systemctl restart weatheralerts-web.service weatheralerts.service
+    systemctl restart "$WEB_SERVICE" "$POLL_SERVICE"
     echo "Services started."
   else
-    echo "Services installed but not started. Edit $CONFIG_DIR/config.yaml, then run:"
-    echo "  sudo systemctl start weatheralerts-web.service weatheralerts.service"
+    echo "Services installed but not started. Edit $CONFIG_PATH, then run:"
+    echo "  sudo systemctl start $WEB_SERVICE $POLL_SERVICE"
   fi
 fi
 
-cat <<EOF
+cat <<EOF_SUMMARY
 
 Install complete.
 Application: $APP_DIR
-Config:      $CONFIG_DIR/config.yaml
+Config:      $CONFIG_PATH
 Dashboard:   http://SERVER_IP:8085/weatheralerts
 
 Useful commands:
-  sudo systemctl status weatheralerts.service
-  sudo systemctl status weatheralerts-web.service
-  sudo journalctl -u weatheralerts.service -f
-  sudo journalctl -u weatheralerts-web.service -f
-EOF
+  sudo systemctl status weather-alerts.service
+  sudo systemctl status weather-alerts-web.service
+  sudo journalctl -u weather-alerts.service -f
+  sudo journalctl -u weather-alerts-web.service -f
+EOF_SUMMARY
