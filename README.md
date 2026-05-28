@@ -17,10 +17,6 @@ WeatherTelegramAlerts monitors active National Weather Service alerts, routes ne
 
 ## Repository safety
 
-Do not commit your real `config.yaml`. It contains Telegram tokens, chat IDs, and webhook secrets.
-
-This repository includes `config.example.yaml` only. Runtime files are ignored by `.gitignore`:
-
 - `config.yaml`
 - `config.*.private.yaml`
 - `data/`
@@ -28,13 +24,11 @@ This repository includes `config.example.yaml` only. Runtime files are ignored b
 - `last_alerts.json`
 - SQLite database files
 
-## Quick install from this ZIP
-
-Unzip the project on the server, copy your private config file to the same server, then run:
+## Quick install
 
 ```bash
 cd WeatherTelegramAlerts
-sudo ./install.sh --config /path/to/config.NC4ES.private.yaml --start
+sudo ./install.sh --start
 ```
 
 The installer will:
